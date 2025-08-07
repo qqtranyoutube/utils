@@ -32,16 +32,20 @@ if videos_df.empty:
     st.warning("Không tìm thấy video nào hôm nay.")
     st.stop()
 
-# Tổng số video
-st.metric("📈 Tổng video hôm nay", len(videos_df))
+# --- Metrics Grid ---
+st.subheader("📊 Tổng quan hôm nay")
+m1, m2, m3 = st.columns(3)
 
-# Livestream count
-live_count = len(videos_df[videos_df['liveBroadcastContent'] == 'live'])
-st.metric("📺 Livestream meditation", live_count)
+with m1:
+    st.metric("📈 Tổng video hôm nay", len(videos_df))
 
-# Số kênh còn hoạt động
-total_channels = videos_df['channelTitle'].nunique()
-st.metric("📣 Số kênh hoạt động", total_channels)
+with m2:
+    live_count = len(videos_df[videos_df['liveBroadcastContent'] == 'live'])
+    st.metric("📺 Livestream meditation", live_count)
+
+with m3:
+    total_channels = videos_df['channelTitle'].nunique()
+    st.metric("📣 Số kênh hoạt động", total_channels)
 
 # Lọc theo quốc gia (nếu có cột channelCountry)
 if 'channelCountry' in videos_df.columns:

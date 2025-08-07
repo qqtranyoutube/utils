@@ -85,9 +85,9 @@ fig = px.histogram(videos_df, x='publishedHour', nbins=24, title="📊 Thống k
                    labels={'publishedHour': 'Giờ trong ngày'}, color_discrete_sequence=['#2196f3'])
 st.plotly_chart(fig, use_container_width=True)
 
-# Bộ lọc tìm kiếm
-st.markdown("### 🔍 Bộ lọc video")
-col1, col2 = st.columns(2)
+# Bộ lọc tìm kiếm nâng cao
+st.markdown("### 🔍 Bộ lọc video nâng cao")
+col1, col2, col3 = st.columns(3)
 
 with col1:
     keyword_filter = st.text_input("🌤️ Lọc theo từ khóa tiêu đề video")
@@ -95,10 +95,14 @@ with col1:
 with col2:
     channel_filter = st.text_input("💼 Lọc theo tên kênh")
 
+with col3:
+    rpm_threshold = st.number_input("💰 Lọc theo RPM tối thiểu (USD):", min_value=0.0, step=0.1, value=0.0)
+
 if keyword_filter:
     videos_df = videos_df[videos_df['title'].str.contains(keyword_filter, case=False, na=False)]
 if channel_filter:
     videos_df = videos_df[videos_df['channelTitle'].str.contains(channel_filter, case=False, na=False)]
+videos_df = videos_df[videos_df['RPM (USD)'] >= rpm_threshold]
 
 # Phân loại theo lượt xem và điều kiện kiếm tiền
 st.markdown("### 🌟 Phân loại video theo lượt xem và kiểm tiền")
@@ -115,7 +119,7 @@ def monetize_status(views):
 videos_df['Phân loại lượt xem'] = videos_df['viewCount'].apply(categorize_views)
 videos_df['Monetization'] = videos_df['viewCount'].apply(monetize_status)
 
-st.dataframe(videos_df[['title', 'channelTitle', 'viewCount', 'Phân loại lượt xem', 'Monetization']])
+st.dataframe(videos_df[['title', 'channelTitle', 'viewCount', 'Phân loại lượt xem', 'Monetization', 'RPM (USD)']])
 
 # Toggle dark mode CSS
 if st.toggle("🌙 Chế độ Dark Mode"):

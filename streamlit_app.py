@@ -119,13 +119,10 @@ def monetize_status(views):
 videos_df['Phân loại lượt xem'] = videos_df['viewCount'].apply(categorize_views)
 videos_df['Monetization'] = videos_df['viewCount'].apply(monetize_status)
 
-# Tính số subscriber (giả sử dữ liệu sẵn hoặc đã bổ sung vào DataFrame)
-if 'subscriberCount' not in videos_df.columns:
-    videos_df['subscriberCount'] = 0  # placeholder
-if 'totalVideos' not in videos_df.columns:
-    videos_df['totalVideos'] = 0
+# Thêm cột liên kết
+videos_df['Tiêu đề (có link)'] = videos_df.apply(lambda row: f"[{row['title']}](https://www.youtube.com/watch?v={row['videoId']})", axis=1)
 
-st.dataframe(videos_df[['title', 'channelTitle', 'viewCount', 'Phân loại lượt xem', 'Monetization', 'RPM (USD)', 'subscriberCount', 'totalVideos']])
+st.dataframe(videos_df[['Tiêu đề (có link)', 'channelTitle', 'viewCount', 'Phân loại lượt xem', 'Monetization', 'RPM (USD)']])
 
 # Toggle dark mode CSS
 if st.toggle("🌙 Chế độ Dark Mode"):

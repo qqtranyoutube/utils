@@ -8,15 +8,15 @@ st.set_page_config(page_title="Meditation YouTube Analyzer", layout="wide")
 st.title("🧘 Meditation YouTube Analyzer")
 
 st.markdown("""
-Một công cụ phân tích các video chủ đề **meditation** trên YouTube:
-- Hiển thị video đạt 1000 views nhanh nhất hôm nay
-- Thống kê tổng video đăng hôm nay
-- Video đang livestream
-- Số kênh còn hoạt động
+Công cụ theo dõi xu hướng video **meditation** trên YouTube, cập nhật **hàng ngày**:
+- 🔥 Video đạt 1000 views nhanh nhất hôm nay
+- 📈 Tổng số video đăng hôm nay
+- 🔴 Video đang livestream
+- 📣 Tổng số kênh còn hoạt động
 """)
 
 # Fetch data
-with st.spinner("🔍 Đang tìm video meditation hôm nay..."):
+with st.spinner("🔍 Đang lấy dữ liệu video meditation hôm nay..."):
     try:
         videos_df = search_meditation_videos_today()
     except HttpError as e:
@@ -24,47 +24,60 @@ with st.spinner("🔍 Đang tìm video meditation hôm nay..."):
         st.exception(e)
         st.stop()
 
-# Chuyển thành DataFrame nếu chưa
 if isinstance(videos_df, list):
     videos_df = pd.DataFrame(videos_df)
 
 if videos_df.empty:
-    st.warning("Không tìm thấy video nào hôm nay.")
+    st.warning("⚠️ Không tìm thấy video nào hôm nay.")
     st.stop()
 
 # --- Metrics Grid ---
-st.subheader("📊 Tổng quan hôm nay")
-m1, m2, m3 = st.columns(3)
+st.markdown("### 📊 Tổng quan hôm nay")
+grid1, grid2, grid3 = st.columns(3)
 
-with m1:
-    st.metric("📈 Tổng video hôm nay", len(videos_df))
+with grid1:
+    st.markdown("""
+    <div style='background-color: #f0f2f6; padding: 20px; border-radius: 10px;'>
+        <h4 style='color:#4a4a4a;'>📈 Tổng video</h4>
+        <h2 style='color:#2e7d32;'>{}</h2>
+    </div>
+    """.format(len(videos_df)), unsafe_allow_html=True)
 
-with m2:
+with grid2:
     live_count = len(videos_df[videos_df['liveBroadcastContent'] == 'live'])
-    st.metric("📺 Livestream meditation", live_count)
+    st.markdown("""
+    <div style='background-color: #f0f2f6; padding: 20px; border-radius: 10px;'>
+        <h4 style='color:#4a4a4a;'>📺 Livestream</h4>
+        <h2 style='color:#d32f2f;'>{}</h2>
+    </div>
+    """.format(live_count), unsafe_allow_html=True)
 
-with m3:
+with grid3:
     total_channels = videos_df['channelTitle'].nunique()
-    st.metric("📣 Số kênh hoạt động", total_channels)
+    st.markdown("""
+    <div style='background-color: #f0f2f6; padding: 20px; border-radius: 10px;'>
+        <h4 style='color:#4a4a4a;'>📣 Kênh hoạt động</h4>
+        <h2 style='color:#1976d2;'>{}</h2>
+    </div>
+    """.format(total_channels), unsafe_allow_html=True)
 
-# Lọc theo quốc gia (nếu có cột channelCountry)
+# Lọc theo quốc gia (nếu có)
 if 'channelCountry' in videos_df.columns:
     countries = videos_df['channelCountry'].dropna().unique()
     selected_country = st.selectbox("🌍 Lọc theo quốc gia", options=['Tất cả'] + sorted(countries.tolist()))
-
     if selected_country != 'Tất cả':
         videos_df = videos_df[videos_df['channelCountry'] == selected_country]
 
 # Video >1000 views
 popular_videos = videos_df[videos_df["viewCount"] > 1000].sort_values("publishedAt")
-st.subheader("🔥 Video > 1000 views hôm nay")
+st.subheader("🔥 Video nổi bật (>1000 views)")
 cols = st.columns(3)
 for i, (_, row) in enumerate(popular_videos.iterrows()):
     with cols[i % 3]:
         st.video(f"https://www.youtube.com/watch?v={row['videoId']}")
         st.markdown(f"**{row['title']}**<br>{row['channelTitle']} — {row['viewCount']:,} views", unsafe_allow_html=True)
 
-# Video đang livestream
+# Livestream videos
 live_videos = videos_df[videos_df['liveBroadcastContent'] == 'live']
 if not live_videos.empty:
     st.subheader("🔴 Video đang livestream")
@@ -82,10 +95,11 @@ channel_stats = videos_df.groupby("channelTitle").agg({
 st.subheader("📊 Thống kê kênh")
 st.dataframe(channel_stats.sort_values("Tổng views", ascending=False))
 
-# Biểu đồ top kênh theo view
+# Biểu đồ top kênh
 fig1 = px.bar(channel_stats.sort_values("Tổng views", ascending=False).head(10),
              x="channelTitle", y="Tổng views",
-             title="Top 10 kênh theo lượt xem hôm nay")
+             title="Top 10 kênh theo lượt xem hôm nay",
+             labels={"channelTitle": "Kênh", "Tổng views": "Lượt xem"})
 st.plotly_chart(fig1, use_container_width=True)
 
 # Biểu đồ phân bố quốc gia
@@ -95,7 +109,7 @@ if 'channelCountry' in videos_df.columns:
     fig2 = px.pie(country_dist, names='Quốc gia', values='Số video', title='Tỷ lệ video theo quốc gia')
     st.plotly_chart(fig2, use_container_width=True)
 
-# Hiển thị toàn bộ video hôm nay
+# Toàn bộ video hôm nay
 st.subheader("🗂️ Tất cả video hôm nay")
 cols_all = st.columns(3)
 for i, (_, row) in enumerate(videos_df.sort_values("publishedAt", ascending=False).iterrows()):

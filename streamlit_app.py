@@ -115,18 +115,23 @@ st.subheader("🗂️ Tất cả video hôm nay")
 video_cards = """
 <style>
 .video-grid {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 24px;
-    justify-content: flex-start;
+    justify-content: center;
 }
 .video-card {
-    width: 320px;
-    border-radius: 12px;
     background: white;
+    border-radius: 12px;
     border: 1px solid #ddd;
     box-shadow: 0 4px 12px rgba(0,0,0,0.06);
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s ease;
+}
+.video-card:hover {
+    transform: scale(1.02);
 }
 .video-card iframe {
     width: 100%;
@@ -135,12 +140,15 @@ video_cards = """
 }
 .video-info {
     padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 .video-title {
     font-weight: 600;
     font-size: 15px;
-    margin-bottom: 6px;
     color: #222;
+    line-height: 1.4;
 }
 .video-meta {
     font-size: 13px;

@@ -1,3 +1,2 @@
-import streamlit as st
-
-YOUTUBE_API_KEY = st.secrets["youtube_api_key"]
+# ✅ ĐÚNG: Import từ module utils
+from utils.youtube_api import search_meditation_videos_today

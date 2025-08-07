@@ -44,3 +44,13 @@ def search_meditation_videos_today():
         })
 
     return pd.DataFrame(videos)
+# Sau khi lấy channelId từ snippet
+channel_id = snippet.get("channelId")
+
+# Lấy quốc gia kênh
+channel_info = youtube.channels().list(
+    part="snippet",
+    id=channel_id
+).execute()
+
+country = channel_info["items"][0]["snippet"].get("country", "Unknown")

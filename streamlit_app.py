@@ -119,7 +119,13 @@ def monetize_status(views):
 videos_df['Phân loại lượt xem'] = videos_df['viewCount'].apply(categorize_views)
 videos_df['Monetization'] = videos_df['viewCount'].apply(monetize_status)
 
-st.dataframe(videos_df[['title', 'channelTitle', 'viewCount', 'Phân loại lượt xem', 'Monetization', 'RPM (USD)']])
+# Tính số subscriber (giả sử dữ liệu sẵn hoặc đã bổ sung vào DataFrame)
+if 'subscriberCount' not in videos_df.columns:
+    videos_df['subscriberCount'] = 0  # placeholder
+if 'totalVideos' not in videos_df.columns:
+    videos_df['totalVideos'] = 0
+
+st.dataframe(videos_df[['title', 'channelTitle', 'viewCount', 'Phân loại lượt xem', 'Monetization', 'RPM (USD)', 'subscriberCount', 'totalVideos']])
 
 # Toggle dark mode CSS
 if st.toggle("🌙 Chế độ Dark Mode"):
@@ -150,7 +156,7 @@ video_grid_html = """
 <style>
 .video-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: 24px;
     padding: 10px;
 }
@@ -208,4 +214,4 @@ for _, row in videos_df.sort_values("publishedAt", ascending=False).iterrows():
     """
 
 video_grid_html += "</div>"
-components.html(video_grid_html, height=1000, scrolling=True)
+components.html(video_grid_html, height=1200, scrolling=True)

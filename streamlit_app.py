@@ -37,12 +37,13 @@ st.metric("📺 Livestream meditation", live_count)
 total_channels = videos_df['channelTitle'].nunique()
 st.metric("📣 Số kênh hoạt động", total_channels)
 
-# Lọc theo quốc gia
-countries = videos_df['channelCountry'].dropna().unique()
-selected_country = st.selectbox("🌍 Lọc theo quốc gia", options=['Tất cả'] + sorted(countries.tolist()))
+# Lọc theo quốc gia (nếu có cột channelCountry)
+if 'channelCountry' in videos_df.columns:
+    countries = videos_df['channelCountry'].dropna().unique()
+    selected_country = st.selectbox("🌍 Lọc theo quốc gia", options=['Tất cả'] + sorted(countries.tolist()))
 
-if selected_country != 'Tất cả':
-    videos_df = videos_df[videos_df['channelCountry'] == selected_country]
+    if selected_country != 'Tất cả':
+        videos_df = videos_df[videos_df['channelCountry'] == selected_country]
 
 # Video >1000 views
 popular_videos = videos_df[videos_df["viewCount"] > 1000].sort_values("publishedAt")

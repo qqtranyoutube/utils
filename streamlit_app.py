@@ -74,10 +74,10 @@ with g4:
     </div>
     """.format(total_channels), unsafe_allow_html=True)
 
-# RPM ước tính (CPM * % RPM / 1000 views)
+# RPM ước tính
 avg_rpm = st.slider("💰 Nhập RPM trung bình (USD/1000 views):", 0.2, 8.0, 2.5, 0.1)
 videos_df['RPM (USD)'] = (videos_df['viewCount'] / 1000) * avg_rpm
-st.metric(label="🎁 Doanh thu ước tính (tổng):", value=f"${videos_df['RPM (USD)'].sum():,.2f}")
+st.metric(label="🏱 Doanh thu ước tính (tổng):", value=f"${videos_df['RPM (USD)'].sum():,.2f}")
 
 # Thống kê theo giờ
 videos_df['publishedHour'] = pd.to_datetime(videos_df['publishedAt']).dt.hour
@@ -100,8 +100,8 @@ if keyword_filter:
 if channel_filter:
     videos_df = videos_df[videos_df['channelTitle'].str.contains(channel_filter, case=False, na=False)]
 
-# Phân loại theo lượt xem
-st.markdown("### 🎯 Phân loại video theo lượt xem")
+# Phân loại theo lượt xem và điều kiện kiếm tiền
+st.markdown("### 🌟 Phân loại video theo lượt xem và kiểm tiền")
 def categorize_views(views):
     if views >= 5000:
         return "Cao"
@@ -109,8 +109,13 @@ def categorize_views(views):
         return "Trung bình"
     return "Thấp"
 
+def monetize_status(views):
+    return "✅ Đủ điều kiện" if views >= 1000 else "❌ Chưa đủ"
+
 videos_df['Phân loại lượt xem'] = videos_df['viewCount'].apply(categorize_views)
-st.dataframe(videos_df[['title', 'channelTitle', 'viewCount', 'Phân loại lượt xem']])
+videos_df['Monetization'] = videos_df['viewCount'].apply(monetize_status)
+
+st.dataframe(videos_df[['title', 'channelTitle', 'viewCount', 'Phân loại lượt xem', 'Monetization']])
 
 # Toggle dark mode CSS
 if st.toggle("🌙 Chế độ Dark Mode"):

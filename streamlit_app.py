@@ -31,11 +31,23 @@ if videos_df.empty:
     st.warning("⚠️ Không tìm thấy video nào hôm nay.")
     st.stop()
 
+# Tìm video đạt 1000 views nhanh nhất
+videos_1000 = videos_df[videos_df['viewCount'] >= 1000].sort_values(by='publishedAt')
+fastest_1000 = videos_1000.iloc[0] if not videos_1000.empty else None
+
 # --- Metrics Grid ---
 st.markdown("### 📊 Tổng quan hôm nay")
-grid1, grid2, grid3 = st.columns(3)
+g1, g2, g3, g4 = st.columns(4)
 
-with grid1:
+with g1:
+    st.markdown("""
+    <div style='background-color: #f0f2f6; padding: 20px; border-radius: 10px;'>
+        <h4 style='color:#4a4a4a;'>🔥 Đạt 1000 views nhanh</h4>
+        <h5 style='color:#444;'>{}</h5>
+    </div>
+    """.format(fastest_1000['title'][:40] + "..." if fastest_1000 is not None else "Chưa có"), unsafe_allow_html=True)
+
+with g2:
     st.markdown("""
     <div style='background-color: #f0f2f6; padding: 20px; border-radius: 10px;'>
         <h4 style='color:#4a4a4a;'>📈 Tổng video</h4>
@@ -43,16 +55,16 @@ with grid1:
     </div>
     """.format(len(videos_df)), unsafe_allow_html=True)
 
-with grid2:
+with g3:
     live_count = len(videos_df[videos_df['liveBroadcastContent'] == 'live'])
     st.markdown("""
     <div style='background-color: #f0f2f6; padding: 20px; border-radius: 10px;'>
-        <h4 style='color:#4a4a4a;'>📺 Livestream</h4>
+        <h4 style='color:#4a4a4a;'>🔴 Livestream</h4>
         <h2 style='color:#d32f2f;'>{}</h2>
     </div>
     """.format(live_count), unsafe_allow_html=True)
 
-with grid3:
+with g4:
     total_channels = videos_df['channelTitle'].nunique()
     st.markdown("""
     <div style='background-color: #f0f2f6; padding: 20px; border-radius: 10px;'>

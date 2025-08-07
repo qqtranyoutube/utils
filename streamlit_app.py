@@ -112,32 +112,38 @@ if 'channelCountry' in videos_df.columns:
 # Toàn bộ video hôm nay
 st.subheader("🗂️ Tất cả video hôm nay")
 
-video_cards = """<style>
+video_cards = """
+<style>
 .video-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    display: flex;
+    flex-wrap: wrap;
     gap: 24px;
-    padding: 8px;
+    justify-content: flex-start;
 }
 .video-card {
-    border-radius: 10px;
-    background-color: #f9f9f9;
-    padding: 10px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    width: 320px;
+    border-radius: 12px;
+    background: white;
+    border: 1px solid #ddd;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    overflow: hidden;
 }
 .video-card iframe {
     width: 100%;
-    border-radius: 8px;
-    margin-bottom: 8px;
+    height: 180px;
+    border: none;
+}
+.video-info {
+    padding: 12px;
 }
 .video-title {
-    font-weight: bold;
-    font-size: 16px;
-    color: #333;
-    margin-bottom: 4px;
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 6px;
+    color: #222;
 }
 .video-meta {
-    font-size: 14px;
+    font-size: 13px;
     color: #666;
 }
 </style>
@@ -147,9 +153,11 @@ video_cards = """<style>
 for _, row in videos_df.sort_values("publishedAt", ascending=False).iterrows():
     video_cards += f"""
     <div class="video-card">
-        <iframe src="https://www.youtube.com/embed/{row['videoId']}" frameborder="0" allowfullscreen></iframe>
-        <div class="video-title">{row['title']}</div>
-        <div class="video-meta">{row['channelTitle']} — {row['viewCount']:,} views</div>
+        <iframe src="https://www.youtube.com/embed/{row['videoId']}" allowfullscreen></iframe>
+        <div class="video-info">
+            <div class="video-title">{row['title']}</div>
+            <div class="video-meta">{row['channelTitle']} — {row['viewCount']:,} views</div>
+        </div>
     </div>
     """
 

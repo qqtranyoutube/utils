@@ -48,6 +48,16 @@ for i, (_, row) in enumerate(popular_videos.iterrows()):
         st.video(f"https://www.youtube.com/watch?v={row['videoId']}")
         st.write(f"**{row['title']}** — {row['channelTitle']} ({row['viewCount']} views)")
 
+# Hiển thị video đang livestream
+live_videos = videos_df[videos_df["liveBroadcastContent"] == "live"]
+if not live_videos.empty:
+    st.subheader("🔴 Video đang livestream")
+    live_cols = st.columns(3)
+    for i, (_, row) in enumerate(live_videos.iterrows()):
+        with live_cols[i % 3]:
+            st.video(f"https://www.youtube.com/watch?v={row['videoId']}")
+            st.write(f"**{row['title']}** — {row['channelTitle']} ({row['viewCount']} views)")
+
 # Thống kê kênh
 channel_stats = videos_df.groupby("channelTitle").agg({
     "videoId": "count",

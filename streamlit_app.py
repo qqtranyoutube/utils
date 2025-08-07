@@ -1,80 +1,66 @@
-import streamlit as st
+from googleapiclient.discovery import build
+from datetime import datetime
 import pandas as pd
-import plotly.express as px
-from utils.youtube_api import search_meditation_videos_today
+import streamlit as st
 
-st.set_page_config(page_title="Meditation YouTube Analyzer", layout="wide")
-st.title("🧘 Meditation YouTube Analyzer")
+def search_meditation_videos_today():
+    api_key = st.secrets["youtube_api_key"]
+    youtube = build("youtube", "v3", developerKey=api_key)
 
-st.markdown("""
-Một công cụ phân tích các video chủ đề **meditation** trên YouTube:
-- Hiển thị video đạt 1000 views nhanh nhất hôm nay
-- Thống kê tổng video đăng hôm nay
-- Video đang livestream
-- Số kênh còn hoạt động
-""")
+    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    published_after = today.isoformat("T") + "Z"
 
-# Fetch data
-with st.spinner("🔍 Đang tìm video meditation hôm nay..."):
-    videos_df = search_meditation_videos_today()
+    videos = []
+    next_page_token = None
+    max_pages = 10  # tối đa 500 video (50 x 10)
 
-# Chuyển thành DataFrame nếu chưa
-if isinstance(videos_df, list):
-    videos_df = pd.DataFrame(videos_df)
+    for _ in range(max_pages):
+        search_response = youtube.search().list(
+            q="meditation",
+            part="snippet",
+            type="video",
+            maxResults=50,
+            order="viewCount",
+            publishedAfter=published_after,
+            relevanceLanguage="en",
+            pageToken=next_page_token
+        ).execute()
 
-# Xử lý thiếu cột country
-if "country" not in videos_df.columns:
-    videos_df["country"] = "Unknown"
+        for item in search_response.get("items", []):
+            video_id = item["id"].get("videoId")
+            snippet = item["snippet"]
+            channel_id = snippet.get("channelId")
 
-# Tổng số video
-st.metric("📈 Tổng video hôm nay", len(videos_df))
+            # Lấy thông tin video
+            video_response = youtube.videos().list(
+                part="statistics,liveStreamingDetails,contentDetails",
+                id=video_id
+            ).execute()
+            video_data = video_response.get("items", [{}])[0]
 
-# Livestream count
-live_count = len(videos_df[videos_df['liveBroadcastContent'] == 'live'])
-st.metric("📺 Livestream meditation", live_count)
+            stats = video_data.get("statistics", {})
+            view_count = int(stats.get("viewCount", 0))
 
-# Lọc theo quốc gia
-countries = ["Tất cả"] + sorted(videos_df["country"].unique())
-selected_country = st.selectbox("🌍 Chọn quốc gia", countries)
-if selected_country != "Tất cả":
-    videos_df = videos_df[videos_df["country"] == selected_country]
+            # Lấy thông tin kênh
+            channel_response = youtube.channels().list(
+                part="snippet",
+                id=channel_id
+            ).execute()
+            country = channel_response.get("items", [{}])[0].get("snippet", {}).get("country", "Unknown")
 
-# Video >1000 views
-popular_videos = videos_df[videos_df["viewCount"] > 1000].sort_values("publishedAt")
-st.subheader("🔥 Video > 1000 views hôm nay")
-cols = st.columns(3)
-for i, (_, row) in enumerate(popular_videos.iterrows()):
-    with cols[i % 3]:
-        st.video(f"https://www.youtube.com/watch?v={row['videoId']}")
-        st.write(f"**{row['title']}** — {row['channelTitle']} ({row['viewCount']} views)")
+            videos.append({
+                "videoId": video_id,
+                "title": snippet.get("title", ""),
+                "channelTitle": snippet.get("channelTitle", ""),
+                "publishedAt": snippet.get("publishedAt", ""),
+                "liveBroadcastContent": snippet.get("liveBroadcastContent", "none"),
+                "viewCount": view_count,
+                "channelId": channel_id,
+                "country": country
+            })
 
-# Hiển thị video đang livestream
-live_videos = videos_df[videos_df["liveBroadcastContent"] == "live"]
-if not live_videos.empty:
-    st.subheader("🔴 Video đang livestream")
-    live_cols = st.columns(3)
-    for i, (_, row) in enumerate(live_videos.iterrows()):
-        with live_cols[i % 3]:
-            st.video(f"https://www.youtube.com/watch?v={row['videoId']}")
-            st.write(f"**{row['title']}** — {row['channelTitle']} ({row['viewCount']} views)")
+        next_page_token = search_response.get("nextPageToken")
+        if not next_page_token:
+            break
 
-# Thống kê kênh
-channel_stats = videos_df.groupby("channelTitle").agg({
-    "videoId": "count",
-    "viewCount": "sum"
-}).reset_index().rename(columns={"videoId": "Tổng video", "viewCount": "Tổng views"})
-st.subheader("📊 Thống kê kênh")
-st.dataframe(channel_stats)
-
-# Biểu đồ cột: Top kênh theo lượt view
-fig_bar = px.bar(channel_stats.sort_values("Tổng views", ascending=False).head(10),
-                 x="channelTitle", y="Tổng views",
-                 title="🏆 Top 10 kênh meditation theo lượt xem hôm nay")
-st.plotly_chart(fig_bar, use_container_width=True)
-
-# Biểu đồ tròn: Phân bố video theo quốc gia
-country_counts = videos_df["country"].value_counts().reset_index()
-country_counts.columns = ["Quốc gia", "Số video"]
-fig_pie = px.pie(country_counts, names="Quốc gia", values="Số video",
-                 title="🌍 Tỷ lệ video meditation theo quốc gia")
-st.plotly_chart(fig_pie, use_container_width=True)
+    return pd.DataFrame(videos)

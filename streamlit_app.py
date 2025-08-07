@@ -150,39 +150,46 @@ video_grid_html = """
 <style>
 .video-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 24px;
+    padding: 10px;
 }
 .video-card {
     background: white;
-    border-radius: 10px;
-    border: 1px solid #ddd;
+    border-radius: 12px;
+    border: 1px solid #ccc;
     overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     display: flex;
     flex-direction: column;
     transition: transform 0.2s ease;
+    height: 100%;
 }
 .video-card:hover {
     transform: scale(1.02);
 }
 .video-card iframe {
     width: 100%;
-    height: 180px;
+    aspect-ratio: 16 / 9;
     border: none;
 }
 .video-info {
-    padding: 12px;
+    padding: 10px 14px;
     font-family: sans-serif;
     font-size: 14px;
 }
 .video-title {
-    font-weight: bold;
-    margin-bottom: 5px;
+    font-weight: 600;
+    margin-bottom: 6px;
     color: #222;
+    line-height: 1.4;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
 }
 .video-meta {
-    color: #666;
+    color: #555;
     font-size: 13px;
 }
 </style>
@@ -201,4 +208,4 @@ for _, row in videos_df.sort_values("publishedAt", ascending=False).iterrows():
     """
 
 video_grid_html += "</div>"
-components.html(video_grid_html, height=800, scrolling=True)
+components.html(video_grid_html, height=1000, scrolling=True)

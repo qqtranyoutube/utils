@@ -90,3 +90,11 @@ if 'channelCountry' in videos_df.columns:
     country_dist.columns = ['Quốc gia', 'Số video']
     fig2 = px.pie(country_dist, names='Quốc gia', values='Số video', title='Tỷ lệ video theo quốc gia')
     st.plotly_chart(fig2, use_container_width=True)
+
+# Hiển thị toàn bộ video hôm nay
+st.subheader("🗂️ Tất cả video hôm nay")
+cols_all = st.columns(3)
+for i, (_, row) in enumerate(videos_df.sort_values("publishedAt", ascending=False).iterrows()):
+    with cols_all[i % 3]:
+        st.video(f"https://www.youtube.com/watch?v={row['videoId']}")
+        st.markdown(f"**{row['title']}**<br>{row['channelTitle']} — {row['viewCount']:,} views", unsafe_allow_html=True)

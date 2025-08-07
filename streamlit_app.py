@@ -111,8 +111,47 @@ if 'channelCountry' in videos_df.columns:
 
 # Toàn bộ video hôm nay
 st.subheader("🗂️ Tất cả video hôm nay")
-cols_all = st.columns(3)
-for i, (_, row) in enumerate(videos_df.sort_values("publishedAt", ascending=False).iterrows()):
-    with cols_all[i % 3]:
-        st.video(f"https://www.youtube.com/watch?v={row['videoId']}")
-        st.markdown(f"**{row['title']}**<br>{row['channelTitle']} — {row['viewCount']:,} views", unsafe_allow_html=True)
+
+video_cards = """<style>
+.video-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+    padding: 8px;
+}
+.video-card {
+    border-radius: 10px;
+    background-color: #f9f9f9;
+    padding: 10px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+.video-card iframe {
+    width: 100%;
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+.video-title {
+    font-weight: bold;
+    font-size: 16px;
+    color: #333;
+    margin-bottom: 4px;
+}
+.video-meta {
+    font-size: 14px;
+    color: #666;
+}
+</style>
+<div class="video-grid">
+"""
+
+for _, row in videos_df.sort_values("publishedAt", ascending=False).iterrows():
+    video_cards += f"""
+    <div class="video-card">
+        <iframe src="https://www.youtube.com/embed/{row['videoId']}" frameborder="0" allowfullscreen></iframe>
+        <div class="video-title">{row['title']}</div>
+        <div class="video-meta">{row['channelTitle']} — {row['viewCount']:,} views</div>
+    </div>
+    """
+
+video_cards += "</div>"
+st.markdown(video_cards, unsafe_allow_html=True)

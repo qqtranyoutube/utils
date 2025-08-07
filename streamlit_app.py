@@ -61,56 +61,57 @@ with grid3:
     </div>
     """.format(total_channels), unsafe_allow_html=True)
 
-# Lọc theo quốc gia (nếu có)
-if 'channelCountry' in videos_df.columns:
-    countries = videos_df['channelCountry'].dropna().unique()
-    selected_country = st.selectbox("🌍 Lọc theo quốc gia", options=['Tất cả'] + sorted(countries.tolist()))
-    if selected_country != 'Tất cả':
-        videos_df = videos_df[videos_df['channelCountry'] == selected_country]
+# Bộ lọc tìm kiếm
+st.markdown("### 🔍 Bộ lọc video")
+col1, col2 = st.columns(2)
 
-# Video >1000 views
-popular_videos = videos_df[videos_df["viewCount"] > 1000].sort_values("publishedAt")
-st.subheader("🔥 Video nổi bật (>1000 views)")
-cols = st.columns(3)
-for i, (_, row) in enumerate(popular_videos.iterrows()):
-    with cols[i % 3]:
-        st.video(f"https://www.youtube.com/watch?v={row['videoId']}")
-        st.markdown(f"**{row['title']}**<br>{row['channelTitle']} — {row['viewCount']:,} views", unsafe_allow_html=True)
+with col1:
+    keyword_filter = st.text_input("🔤 Lọc theo từ khóa tiêu đề video")
 
-# Livestream videos
-live_videos = videos_df[videos_df['liveBroadcastContent'] == 'live']
-if not live_videos.empty:
-    st.subheader("🔴 Video đang livestream")
-    cols_live = st.columns(2)
-    for i, (_, row) in enumerate(live_videos.iterrows()):
-        with cols_live[i % 2]:
-            st.video(f"https://www.youtube.com/watch?v={row['videoId']}")
-            st.markdown(f"**{row['title']}**<br>{row['channelTitle']}", unsafe_allow_html=True)
+with col2:
+    channel_filter = st.text_input("📺 Lọc theo tên kênh")
 
-# Thống kê kênh
-channel_stats = videos_df.groupby("channelTitle").agg({
-    "videoId": "count",
-    "viewCount": "sum"
-}).reset_index().rename(columns={"videoId": "Tổng video", "viewCount": "Tổng views"})
-st.subheader("📊 Thống kê kênh")
-st.dataframe(channel_stats.sort_values("Tổng views", ascending=False))
+if keyword_filter:
+    videos_df = videos_df[videos_df['title'].str.contains(keyword_filter, case=False, na=False)]
+if channel_filter:
+    videos_df = videos_df[videos_df['channelTitle'].str.contains(channel_filter, case=False, na=False)]
 
-# Biểu đồ top kênh
-fig1 = px.bar(channel_stats.sort_values("Tổng views", ascending=False).head(10),
-             x="channelTitle", y="Tổng views",
-             title="Top 10 kênh theo lượt xem hôm nay",
-             labels={"channelTitle": "Kênh", "Tổng views": "Lượt xem"})
-st.plotly_chart(fig1, use_container_width=True)
+# Phân loại theo lượt xem
+st.markdown("### 🎯 Phân loại video theo lượt xem")
+def categorize_views(views):
+    if views >= 5000:
+        return "Cao"
+    elif views >= 1000:
+        return "Trung bình"
+    return "Thấp"
 
-# Biểu đồ phân bố quốc gia
-if 'channelCountry' in videos_df.columns:
-    country_dist = videos_df['channelCountry'].value_counts().reset_index()
-    country_dist.columns = ['Quốc gia', 'Số video']
-    fig2 = px.pie(country_dist, names='Quốc gia', values='Số video', title='Tỷ lệ video theo quốc gia')
-    st.plotly_chart(fig2, use_container_width=True)
+videos_df['Phân loại lượt xem'] = videos_df['viewCount'].apply(categorize_views)
+st.dataframe(videos_df[['title', 'channelTitle', 'viewCount', 'Phân loại lượt xem']])
+
+# Toggle dark mode CSS
+if st.toggle("🌙 Chế độ Dark Mode"):
+    st.markdown("""
+    <style>
+    body, .stApp {
+        background-color: #121212;
+        color: #e0e0e0;
+    }
+    .video-card {
+        background: #1e1e1e !important;
+        color: #e0e0e0 !important;
+        border-color: #333 !important;
+    }
+    .video-title {
+        color: #fff !important;
+    }
+    .video-meta {
+        color: #aaa !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 # Toàn bộ video hôm nay
-st.subheader("🗂️ Tất cả video hôm nay")
+st.subheader("📂 Tất cả video hôm nay")
 
 video_cards = """
 <style>

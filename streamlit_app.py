@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from utils.youtube_api import search_meditation_videos_today
+from googleapiclient.errors import HttpError
 
 st.set_page_config(page_title="Meditation YouTube Analyzer", layout="wide")
 st.title("🧘 Meditation YouTube Analyzer")
@@ -16,7 +17,12 @@ Một công cụ phân tích các video chủ đề **meditation** trên YouTube
 
 # Fetch data
 with st.spinner("🔍 Đang tìm video meditation hôm nay..."):
-    videos_df = search_meditation_videos_today()
+    try:
+        videos_df = search_meditation_videos_today()
+    except HttpError as e:
+        st.error("🚨 Lỗi khi truy vấn YouTube API.")
+        st.exception(e)
+        st.stop()
 
 # Chuyển thành DataFrame nếu chưa
 if isinstance(videos_df, list):
@@ -52,7 +58,7 @@ cols = st.columns(3)
 for i, (_, row) in enumerate(popular_videos.iterrows()):
     with cols[i % 3]:
         st.video(f"https://www.youtube.com/watch?v={row['videoId']}")
-        st.write(f"**{row['title']}**\n{row['channelTitle']} — {row['viewCount']:,} views")
+        st.markdown(f"**{row['title']}**<br>{row['channelTitle']} — {row['viewCount']:,} views", unsafe_allow_html=True)
 
 # Video đang livestream
 live_videos = videos_df[videos_df['liveBroadcastContent'] == 'live']
@@ -62,7 +68,7 @@ if not live_videos.empty:
     for i, (_, row) in enumerate(live_videos.iterrows()):
         with cols_live[i % 2]:
             st.video(f"https://www.youtube.com/watch?v={row['videoId']}")
-            st.write(f"**{row['title']}**\n{row['channelTitle']}")
+            st.markdown(f"**{row['title']}**<br>{row['channelTitle']}", unsafe_allow_html=True)
 
 # Thống kê kênh
 channel_stats = videos_df.groupby("channelTitle").agg({

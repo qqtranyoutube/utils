@@ -8,7 +8,7 @@ st.title("🧘 Meditation YouTube Analyzer")
 
 st.markdown("""
 Một công cụ phân tích các video chủ đề **meditation** trên YouTube:
-- Hiển thị video đạt 10000 views nhanh nhất hôm nay (dạng grid)
+- Hiển thị video đạt 1000 views nhanh nhất hôm nay (dạng grid)
 - Thống kê tổng video đăng hôm nay, video đang livestream
 - Bộ lọc theo quốc gia
 - Biểu đồ thống kê video & views theo kênh
@@ -45,8 +45,8 @@ live_count = len(videos_df[videos_df['liveBroadcastContent'] == 'live'])
 st.metric("📺 Video đang livestream", live_count)
 
 # Video > 1000 views
-popular_videos = videos_df[videos_df["viewCount"] > 10000].sort_values("publishedAt")
-st.subheader("🔥 Video > 10000 views hôm nay")
+popular_videos = videos_df[videos_df["viewCount"] > 1000].sort_values("publishedAt")
+st.subheader("🔥 Video > 1000 views hôm nay")
 
 # 👉 Hiển thị dạng grid 3 cột
 cols = st.columns(3)

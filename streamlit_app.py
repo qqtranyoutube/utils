@@ -77,7 +77,7 @@ with g4:
 # RPM ước tính
 avg_rpm = st.slider("💰 Nhập RPM trung bình (USD/1000 views):", 0.2, 8.0, 2.5, 0.1)
 videos_df['RPM (USD)'] = (videos_df['viewCount'] / 1000) * avg_rpm
-st.metric(label="🏱 Doanh thu ước tính (tổng):", value=f"${videos_df['RPM (USD)'].sum():,.2f}")
+st.metric(label="🏡 Doanh thu ước tính (tổng):", value=f"${videos_df['RPM (USD)'].sum():,.2f}")
 
 # Thống kê theo giờ
 videos_df['publishedHour'] = pd.to_datetime(videos_df['publishedAt']).dt.hour
@@ -150,7 +150,7 @@ video_grid_html = """
 <style>
 .video-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: 20px;
 }
 .video-card {

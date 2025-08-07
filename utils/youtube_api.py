@@ -17,7 +17,7 @@ def search_meditation_videos_today():
         q="meditation",
         part="snippet",
         type="video",
-        maxResults=50,
+        maxResults=100,
         order="date",
         publishedAfter=published_after
     ).execute()

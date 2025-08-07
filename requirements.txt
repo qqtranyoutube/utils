@@ -1,1 +1,4 @@
-pip install streamlit google-api-python-client
+streamlit
+google-api-python-client
+PyYAML
+

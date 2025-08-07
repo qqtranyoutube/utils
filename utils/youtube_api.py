@@ -1,50 +1,64 @@
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+from dotenv import load_dotenv
 import os
 import datetime
-from googleapiclient.discovery import build
-from dotenv import load_dotenv
+import pandas as pd
 
 load_dotenv()
-YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
-youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
+API_KEY = os.getenv("YOUTUBE_API_KEY")
 
 def search_meditation_videos_today():
-    today = datetime.datetime.utcnow().date().isoformat() + "T00:00:00Z"
-    search_response = youtube.search().list(
-        q="meditation",
-        part="snippet",
-        maxResults=50,
-        order="date",
-        publishedAfter=today,
-        type="video"
-    ).execute()
+    try:
+        youtube = build("youtube", "v3", developerKey=API_KEY)
 
-    video_ids = [item["id"]["videoId"] for item in search_response["items"]]
+        today = datetime.datetime.utcnow().date()
+        published_after = today.isoformat() + "T00:00:00Z"
 
-    if not video_ids:
-        return []
+        search_response = (
+            youtube.search()
+            .list(
+                q="meditation",
+                part="id,snippet",
+                type="video",
+                order="date",
+                publishedAfter=published_after,
+                maxResults=50,
+            )
+            .execute()
+        )
 
-    videos_response = youtube.videos().list(
-        part="snippet,statistics,liveStreamingDetails",
-        id=','.join(video_ids)
-    ).execute()
+        videos = []
+        for item in search_response.get("items", []):
+            video_id = item["id"]["videoId"]
+            title = item["snippet"]["title"]
+            channel_id = item["snippet"]["channelId"]
+            channel_title = item["snippet"]["channelTitle"]
 
-    videos_data = []
-    for item in videos_response["items"]:
-        snippet = item["snippet"]
-        statistics = item.get("statistics", {})
-        live_details = item.get("liveStreamingDetails", {})
+            # Get video statistics
+            video_response = (
+                youtube.videos()
+                .list(part="statistics", id=video_id)
+                .execute()
+            )
 
-        video_data = {
-            "videoId": item["id"],
-            "title": snippet.get("title"),
-            "channelTitle": snippet.get("channelTitle"),
-            "publishedAt": snippet.get("publishedAt"),
-            "viewCount": int(statistics.get("viewCount", 0)),
-            "likeCount": int(statistics.get("likeCount", 0)),
-            "commentCount": int(statistics.get("commentCount", 0)),
-            "liveBroadcastContent": snippet.get("liveBroadcastContent", "none"),
-            "actualStartTime": live_details.get("actualStartTime")
-        }
-        videos_data.append(video_data)
+            statistics = video_response["items"][0]["statistics"]
+            view_count = int(statistics.get("viewCount", 0))
 
-    return videos_data
+            videos.append({
+                "video_id": video_id,
+                "title": title,
+                "channel_id": channel_id,
+                "channel_title": channel_title,
+                "view_count": view_count
+            })
+
+        return pd.DataFrame(videos)
+
+    except HttpError as e:
+        print(f"HTTP error occurred: {e}")
+        return pd.DataFrame([])
+
+    except Exception as e:
+        print(f"Other error occurred: {e}")
+        return pd.DataFrame([])

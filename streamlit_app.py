@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import streamlit.components.v1 as components
 from utils.youtube_api import search_meditation_videos_today
 from googleapiclient.errors import HttpError
 
@@ -73,15 +74,26 @@ with g4:
     </div>
     """.format(total_channels), unsafe_allow_html=True)
 
+# RPM ước tính (CPM * % RPM / 1000 views)
+avg_rpm = st.slider("💰 Nhập RPM trung bình (USD/1000 views):", 0.2, 8.0, 2.5, 0.1)
+videos_df['RPM (USD)'] = (videos_df['viewCount'] / 1000) * avg_rpm
+st.metric(label="🎁 Doanh thu ước tính (tổng):", value=f"${videos_df['RPM (USD)'].sum():,.2f}")
+
+# Thống kê theo giờ
+videos_df['publishedHour'] = pd.to_datetime(videos_df['publishedAt']).dt.hour
+fig = px.histogram(videos_df, x='publishedHour', nbins=24, title="📊 Thống kê số video theo giờ đăng",
+                   labels={'publishedHour': 'Giờ trong ngày'}, color_discrete_sequence=['#2196f3'])
+st.plotly_chart(fig, use_container_width=True)
+
 # Bộ lọc tìm kiếm
 st.markdown("### 🔍 Bộ lọc video")
 col1, col2 = st.columns(2)
 
 with col1:
-    keyword_filter = st.text_input("🔤 Lọc theo từ khóa tiêu đề video")
+    keyword_filter = st.text_input("🌤️ Lọc theo từ khóa tiêu đề video")
 
 with col2:
-    channel_filter = st.text_input("📺 Lọc theo tên kênh")
+    channel_filter = st.text_input("💼 Lọc theo tên kênh")
 
 if keyword_filter:
     videos_df = videos_df[videos_df['title'].str.contains(keyword_filter, case=False, na=False)]
@@ -122,29 +134,28 @@ if st.toggle("🌙 Chế độ Dark Mode"):
     </style>
     """, unsafe_allow_html=True)
 
-# Toàn bộ video hôm nay
+# Toàn bộ video hôm nay dạng grid
 st.subheader("📂 Tất cả video hôm nay")
 
-videos_html = """
+video_grid_html = """
 <style>
 .video-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 20px;
-    margin-top: 20px;
 }
 .video-card {
     background: white;
     border-radius: 10px;
     border: 1px solid #ddd;
     overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     display: flex;
     flex-direction: column;
-    transition: transform 0.2s;
+    transition: transform 0.2s ease;
 }
 .video-card:hover {
-    transform: translateY(-5px);
+    transform: scale(1.02);
 }
 .video-card iframe {
     width: 100%;
@@ -153,15 +164,16 @@ videos_html = """
 }
 .video-info {
     padding: 12px;
+    font-family: sans-serif;
     font-size: 14px;
 }
 .video-title {
-    font-weight: 600;
-    margin-bottom: 6px;
+    font-weight: bold;
+    margin-bottom: 5px;
     color: #222;
 }
 .video-meta {
-    color: #555;
+    color: #666;
     font-size: 13px;
 }
 </style>
@@ -169,7 +181,7 @@ videos_html = """
 """
 
 for _, row in videos_df.sort_values("publishedAt", ascending=False).iterrows():
-    videos_html += f"""
+    video_grid_html += f"""
     <div class="video-card">
         <iframe src="https://www.youtube.com/embed/{row['videoId']}" allowfullscreen></iframe>
         <div class="video-info">
@@ -179,5 +191,5 @@ for _, row in videos_df.sort_values("publishedAt", ascending=False).iterrows():
     </div>
     """
 
-videos_html += "</div>"
-st.markdown(videos_html, unsafe_allow_html=True)
+video_grid_html += "</div>"
+components.html(video_grid_html, height=800, scrolling=True)

@@ -1,34 +1,46 @@
-import requests
+# utils/youtube_api.py
+
 import streamlit as st
+from googleapiclient.discovery import build
 from datetime import datetime, timedelta
 import pandas as pd
 
 def search_meditation_videos_today():
     api_key = st.secrets["youtube_api_key"]
-    now = datetime.utcnow()
-    published_after = (now - timedelta(days=1)).isoformat("T") + "Z"
+    youtube = build("youtube", "v3", developerKey=api_key)
 
-    url = "https://www.googleapis.com/youtube/v3/search"
-    params = {
-        "part": "snippet",
-        "q": "meditation",
-        "type": "video",
-        "order": "date",
-        "publishedAfter": published_after,
-        "maxResults": 20,
-        "key": api_key
-    }
+    published_after = (datetime.utcnow() - timedelta(days=1)).isoformat("T") + "Z"
 
-    res = requests.get(url, params=params).json()
-    video_data = []
-    for item in res.get("items", []):
-        video = {
-            "videoId": item["id"]["videoId"],
-            "title": item["snippet"]["title"],
-            "channelTitle": item["snippet"]["channelTitle"],
-            "publishedAt": item["snippet"]["publishedAt"],
-            "liveBroadcastContent": item["snippet"]["liveBroadcastContent"],
-            "viewCount": 0  # Placeholder
-        }
-        video_data.append(video)
-    return pd.DataFrame(video_data)
+    search_response = youtube.search().list(
+        q="meditation",
+        type="video",
+        part="id,snippet",
+        order="date",
+        publishedAfter=published_after,
+        maxResults=50
+    ).execute()
+
+    videos = []
+    for item in search_response.get("items", []):
+        video_id = item["id"]["videoId"]
+        snippet = item["snippet"]
+
+        # Gọi tiếp API để lấy thống kê video
+        video_response = youtube.videos().list(
+            part="statistics,liveStreamingDetails",
+            id=video_id
+        ).execute()
+
+        stats = video_response.get("items", [{}])[0].get("statistics", {})
+        live = video_response.get("items", [{}])[0].get("snippet", {}).get("liveBroadcastContent", "none")
+
+        videos.append({
+            "videoId": video_id,
+            "title": snippet.get("title"),
+            "channelTitle": snippet.get("channelTitle"),
+            "publishedAt": snippet.get("publishedAt"),
+            "viewCount": int(stats.get("viewCount", 0)),
+            "liveBroadcastContent": live,
+        })
+
+    return pd.DataFrame(videos)

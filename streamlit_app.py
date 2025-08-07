@@ -125,7 +125,7 @@ if st.toggle("🌙 Chế độ Dark Mode"):
 # Toàn bộ video hôm nay
 st.subheader("📂 Tất cả video hôm nay")
 
-st.markdown("""
+videos_html = """
 <style>
 .video-grid {
     display: grid;
@@ -166,10 +166,10 @@ st.markdown("""
 }
 </style>
 <div class="video-grid">
-""", unsafe_allow_html=True)
+"""
 
 for _, row in videos_df.sort_values("publishedAt", ascending=False).iterrows():
-    st.markdown(f"""
+    videos_html += f"""
     <div class="video-card">
         <iframe src="https://www.youtube.com/embed/{row['videoId']}" allowfullscreen></iframe>
         <div class="video-info">
@@ -177,6 +177,7 @@ for _, row in videos_df.sort_values("publishedAt", ascending=False).iterrows():
             <div class="video-meta">{row['channelTitle']} — {row['viewCount']:,} views</div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """
 
-st.markdown("</div>", unsafe_allow_html=True)
+videos_html += "</div>"
+st.markdown(videos_html, unsafe_allow_html=True)

@@ -6,11 +6,11 @@ from utils.youtube_api import final_pipeline
 from googleapiclient.errors import HttpError
 
 st.set_page_config(page_title="Meditation YouTube Analyzer", layout="wide")
-st.title("🧘 Meditation YouTube Analyzer — PRO")
+st.title("🧘 QQTran YouTube Analyzer — PRO")
 
 st.markdown(
     """
-Công cụ phân tích video chủ đề **meditation** (cập nhật hàng ngày).
+Công cụ phân tích video chủ đề **HOT key** (cập nhật hàng ngày).
 Tính năng: tìm video hôm nay, livestream, thống kê kênh, RPM ước tính, lọc nâng cao, grid hiển thị.
 """
 )

@@ -1,17 +1,15 @@
 import os
+from datetime import datetime
+import pandas as pd
 import streamlit as st
 from googleapiclient.discovery import build
 from dotenv import load_dotenv
-from datetime import datetime
-import pandas as pd
 
 # Load biến môi trường từ file .env
 load_dotenv()
 
 def get_api_key():
-    """
-    Lấy API key từ env, secrets hoặc hỏi người dùng nhập.
-    """
+    """Lấy API key từ env hoặc nhập tay nếu chưa có."""
     if "YOUTUBE_API_KEY" in st.session_state:
         return st.session_state["YOUTUBE_API_KEY"]
 
@@ -21,11 +19,11 @@ def get_api_key():
         st.warning("⚠ Chưa tìm thấy **YOUTUBE_API_KEY**. Vui lòng nhập để tiếp tục.")
         with st.form("api_key_form"):
             user_key = st.text_input("Nhập YouTube API Key:", type="password")
-            submit = st.form_submit_button("Lưu & Tiếp tục")
-            if submit:
+            submitted = st.form_submit_button("Lưu & Tiếp tục")
+            if submitted:
                 if user_key.strip():
                     st.session_state["YOUTUBE_API_KEY"] = user_key.strip()
-                    st.success("✅ API Key đã được lưu tạm thời.")
+                    st.success("✅ API Key đã được lưu.")
                     return user_key.strip()
                 else:
                     st.error("❌ API Key không hợp lệ.")
@@ -36,18 +34,14 @@ def get_api_key():
     return api_key
 
 def build_youtube_service():
-    """
-    Khởi tạo YouTube API client.
-    """
+    """Khởi tạo YouTube API client."""
     api_key = get_api_key()
     if not api_key:
         return None
     return build("youtube", "v3", developerKey=api_key)
 
 def search_meditation_videos_today():
-    """
-    Lấy video meditation đăng hôm nay + thông tin kênh.
-    """
+    """Lấy video meditation đăng hôm nay + thống kê."""
     youtube = build_youtube_service()
     if youtube is None:
         st.stop()
@@ -55,7 +49,7 @@ def search_meditation_videos_today():
     today = datetime.utcnow().date()
     published_after = datetime.combine(today, datetime.min.time()).isoformat("T") + "Z"
 
-    search_request = youtube.search().list(
+    search_req = youtube.search().list(
         q="meditation",
         part="snippet",
         type="video",
@@ -63,22 +57,22 @@ def search_meditation_videos_today():
         publishedAfter=published_after,
         maxResults=50
     )
-    search_response = search_request.execute()
+    search_res = search_req.execute()
 
     videos_data = []
-    for item in search_response.get("items", []):
+    for item in search_res.get("items", []):
         video_id = item["id"]["videoId"]
         snippet = item["snippet"]
         channel_id = snippet["channelId"]
 
-        # Video stats
+        # Lấy stats video
         stats_resp = youtube.videos().list(
             part="statistics",
             id=video_id
         ).execute()
         stats = stats_resp["items"][0]["statistics"] if stats_resp.get("items") else {}
 
-        # Channel stats
+        # Lấy stats channel
         channel_resp = youtube.channels().list(
             part="statistics",
             id=channel_id
@@ -99,5 +93,4 @@ def search_meditation_videos_today():
         })
 
     df = pd.DataFrame(videos_data)
-    df = df.sort_values(by="views", ascending=False).reset_index(drop=True)
-    return df
+    return df.sort_values(by="views", ascending=False).reset_index(drop=True)

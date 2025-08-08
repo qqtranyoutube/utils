@@ -9,7 +9,7 @@ st.title("🧘 QQTran YouTube Analyzer — PRO")
 
 st.markdown(
     """
-Công cụ phân tích video chủ đề **meditation** (cập nhật hàng ngày).
+Công cụ phân tích video chủ đề **HOTKEY** (cập nhật hàng ngày).
 Tính năng: tìm video hôm nay, livestream, thống kê kênh, RPM ước tính, lọc nâng cao, grid hiển thị.
 """
 )

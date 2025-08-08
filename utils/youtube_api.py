@@ -49,7 +49,7 @@ def _safe_get(url: str, params: dict, max_retries: int = 3, backoff: float = 0.5
 
         # Quota or rate limit -> raise HttpError so caller can show meaningful message
         if resp.status_code in (403, 429) or "quotaExceeded" in reasons or "rateLimitExceeded" in reasons:
-            raise HttpError(resp, resp.text, uri=resp.url)
+            raise HttpError(resp, resp.content, uri=resp.url)
 
         # Retry on server errors
         if resp.status_code >= 500:

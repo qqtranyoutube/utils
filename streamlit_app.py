@@ -1,106 +1,45 @@
-import os
 import streamlit as st
-from googleapiclient.discovery import build
-from dotenv import load_dotenv
-from datetime import datetime
-import pandas as pd
+from utils.youtube_api import (
+    set_api_key, search_meditation_videos_today, get_stats_summary
+)
 
-# Load biến môi trường từ file .env nếu có
-load_dotenv()
+st.set_page_config(page_title="YouTube Meditation Analyzer PRO", layout="wide")
 
+st.title("🧘 YouTube Meditation Analyzer PRO")
 
-def get_api_key():
-    """
-    Lấy API key từ env, secrets hoặc hỏi người dùng nhập.
-    """
-    # Ưu tiên lấy từ session
-    if "YOUTUBE_API_KEY" in st.session_state:
-        return st.session_state["YOUTUBE_API_KEY"]
+# Kiểm tra API Key
+if "YOUTUBE_API_KEY" not in st.session_state:
+    st.warning("🔑 Bạn chưa nhập YouTube API Key.")
+    with st.form("api_key_form"):
+        api_key_input = st.text_input("Nhập YouTube API Key:", type="password")
+        submitted = st.form_submit_button("Lưu API Key")
+        if submitted:
+            if api_key_input.strip():
+                set_api_key(api_key_input.strip())
+                st.success("✅ API Key đã được lưu! Hãy bấm 'Run' để tiếp tục.")
+                st.experimental_rerun()
+            else:
+                st.error("❌ API Key không hợp lệ. Vui lòng nhập lại.")
+else:
+    # Khi đã có API key thì chạy tìm kiếm video
+    st.success("✅ API Key đã sẵn sàng.")
 
-    # Lấy từ biến môi trường hoặc Streamlit secrets
-    api_key = os.getenv("YOUTUBE_API_KEY") or st.secrets.get("YOUTUBE_API_KEY", None)
+    with st.spinner("🔍 Đang tìm kiếm video meditation hôm nay..."):
+        videos_df = search_meditation_videos_today()
 
-    # Nếu chưa có thì hiển thị form nhập
-    if not api_key:
-        st.warning("⚠ Chưa tìm thấy **YOUTUBE_API_KEY**. Vui lòng nhập để tiếp tục.")
-        with st.form("api_key_form"):
-            user_key = st.text_input("Nhập YouTube API Key:", type="password")
-            submit = st.form_submit_button("Lưu & Tiếp tục")
-            if submit:
-                if user_key.strip():
-                    st.session_state["YOUTUBE_API_KEY"] = user_key.strip()
-                    st.success("✅ API Key đã được lưu tạm thời.")
-                    return user_key.strip()
-                else:
-                    st.error("❌ API Key không hợp lệ.")
-                    return None
-        return None
+    if videos_df is not None and not videos_df.empty:
+        # Thống kê
+        stats = get_stats_summary(videos_df)
+        st.subheader("📊 Thống kê hôm nay")
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Tổng video hôm nay", stats["total_videos"])
+        col2.metric("Tổng kênh hoạt động", stats["total_channels"])
+        col3.metric("Video >1000 views nhanh nhất", stats["fastest_1k_title"])
+        col4.metric("Video đang livestream", stats["total_livestreams"])
 
-    st.session_state["YOUTUBE_API_KEY"] = api_key
-    return api_key
+        # Hiển thị bảng chi tiết
+        st.subheader("📋 Danh sách video hôm nay")
+        st.dataframe(videos_df, use_container_width=True)
 
-
-def build_youtube_service():
-    """
-    Khởi tạo YouTube API client.
-    """
-    api_key = get_api_key()
-    if not api_key:
-        return None
-    return build("youtube", "v3", developerKey=api_key)
-
-
-def search_meditation_videos_today():
-    """
-    Lấy video meditation đăng hôm nay + thông tin kênh.
-    """
-    youtube = build_youtube_service()
-    if youtube is None:
-        st.stop()
-
-    today = datetime.utcnow().date()
-    published_after = datetime.combine(today, datetime.min.time()).isoformat("T") + "Z"
-
-    search_request = youtube.search().list(
-        q="meditation",
-        part="snippet",
-        type="video",
-        order="date",
-        publishedAfter=published_after,
-        maxResults=50
-    )
-    search_response = search_request.execute()
-
-    videos_data = []
-    for item in search_response.get("items", []):
-        video_id = item["id"]["videoId"]
-        snippet = item["snippet"]
-        channel_id = snippet["channelId"]
-
-        # Video stats
-        stats_resp = youtube.videos().list(part="statistics", id=video_id).execute()
-        stats = stats_resp["items"][0]["statistics"] if stats_resp.get("items") else {}
-
-        # Channel stats
-        channel_resp = youtube.channels().list(part="statistics", id=channel_id).execute()
-        ch_stats = channel_resp["items"][0]["statistics"] if channel_resp.get("items") else {}
-
-        videos_data.append({
-            "video_id": video_id,
-            "title": snippet["title"],
-            "channel_title": snippet["channelTitle"],
-            "published_at": snippet["publishedAt"],
-            "views": int(stats.get("viewCount", 0)),
-            "likes": int(stats.get("likeCount", 0)) if "likeCount" in stats else None,
-            "comments": int(stats.get("commentCount", 0)) if "commentCount" in stats else None,
-            "subs": int(ch_stats.get("subscriberCount", 0)),
-            "total_videos": int(ch_stats.get("videoCount", 0)),
-            "channel_id": channel_id
-        })
-
-    df = pd.DataFrame(videos_data)
-
-    # Sắp xếp theo lượt xem giảm dần
-    df = df.sort_values(by="views", ascending=False).reset_index(drop=True)
-
-    return df
+    else:
+        st.info("📭 Không tìm thấy video meditation nào hôm nay.")

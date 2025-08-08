@@ -1,3 +1,4 @@
+# utils/youtube_api.py
 import os
 import time
 from typing import List, Any, Optional
@@ -7,6 +8,7 @@ import pandas as pd
 from googleapiclient.errors import HttpError
 from dotenv import load_dotenv
 
+# Load .env if present
 load_dotenv()
 API_KEY_DEFAULT = os.getenv("YOUTUBE_API_KEY")
 
@@ -16,11 +18,12 @@ CHANNELS_URL = "https://www.googleapis.com/youtube/v3/channels"
 
 
 def _safe_get(url: str, params: dict, max_retries: int = 3, backoff: float = 0.3) -> dict:
+    """HTTP GET with simple retry/backoff and quota handling (raise HttpError on quota)."""
     headers = {"Accept": "application/json"}
     for attempt in range(1, max_retries + 1):
         try:
             resp = requests.get(url, params=params, headers=headers, timeout=10)
-        except requests.RequestException as e:
+        except requests.RequestException:
             if attempt == max_retries:
                 raise
             time.sleep(backoff * attempt)
@@ -29,7 +32,7 @@ def _safe_get(url: str, params: dict, max_retries: int = 3, backoff: float = 0.3
         if resp.status_code == 200:
             return resp.json()
 
-        # parse error body
+        # try parse body for error reasons
         try:
             body = resp.json()
         except Exception:
@@ -39,7 +42,7 @@ def _safe_get(url: str, params: dict, max_retries: int = 3, backoff: float = 0.3
         reasons = [e.get("reason") for e in err.get("errors", [])] if isinstance(err, dict) else []
 
         if resp.status_code in (403, 429) or "quotaExceeded" in reasons or "rateLimitExceeded" in reasons:
-            # raise HttpError so upstream can catch and display
+            # propagate as HttpError so UI can catch and show message
             raise HttpError(resp, resp.text, uri=resp.url)
 
         if resp.status_code >= 500:
@@ -59,6 +62,7 @@ def _batch(iterable: List[Any], n: int):
 
 
 def search_meditation_videos_today(api_key: Optional[str]) -> pd.DataFrame:
+    """Search videos with q='meditation' published today (UTC). Returns DataFrame of basic search results."""
     if not api_key:
         api_key = API_KEY_DEFAULT
     if not api_key:
@@ -88,25 +92,30 @@ def search_meditation_videos_today(api_key: Optional[str]) -> pd.DataFrame:
         data = _safe_get(SEARCH_URL, params)
         for it in data.get("items", []):
             sn = it.get("snippet", {})
-            items.append({
-                "videoId": it.get("id", {}).get("videoId"),
-                "title": sn.get("title"),
-                "channelId": sn.get("channelId"),
-                "channelTitle": sn.get("channelTitle"),
-                "publishedAt": sn.get("publishedAt"),
-                "thumbnail": (sn.get("thumbnails") or {}).get("medium", {}).get("url"),
-                "liveBroadcastContent": sn.get("liveBroadcastContent", "none"),
-            })
+            items.append(
+                {
+                    "videoId": it.get("id", {}).get("videoId"),
+                    "title": sn.get("title"),
+                    "description": sn.get("description"),
+                    "channelId": sn.get("channelId"),
+                    "channelTitle": sn.get("channelTitle"),
+                    "publishedAt": sn.get("publishedAt"),
+                    "thumbnail": (sn.get("thumbnails") or {}).get("high", {}).get("url")
+                    or (sn.get("thumbnails") or {}).get("medium", {}).get("url"),
+                    "liveBroadcastContent": sn.get("liveBroadcastContent", "none"),
+                }
+            )
 
         page_token = data.get("nextPageToken")
         if not page_token:
             break
-        time.sleep(0.08)
+        time.sleep(0.08)  # gentle
 
     return pd.DataFrame(items)
 
 
 def enrich_videos_with_stats(api_key: str, df: pd.DataFrame) -> pd.DataFrame:
+    """Add statistics per video via videos.list (batched)."""
     if df is None or df.empty:
         return pd.DataFrame([])
 
@@ -119,15 +128,17 @@ def enrich_videos_with_stats(api_key: str, df: pd.DataFrame) -> pd.DataFrame:
             sn = it.get("snippet", {})
             st = it.get("statistics", {})
             live = it.get("liveStreamingDetails", {})
-            rows.append({
-                "videoId": it.get("id"),
-                "viewCount": int(st.get("viewCount", 0)),
-                "likeCount": int(st.get("likeCount", 0)) if st.get("likeCount") else 0,
-                "commentCount": int(st.get("commentCount", 0)) if st.get("commentCount") else 0,
-                "actualStartTime": live.get("actualStartTime"),
-                "liveDetailsPresent": bool(live),
-                "defaultAudioLanguage": sn.get("defaultAudioLanguage"),
-            })
+            rows.append(
+                {
+                    "videoId": it.get("id"),
+                    "viewCount": int(st.get("viewCount", 0)),
+                    "likeCount": int(st.get("likeCount", 0)) if st.get("likeCount") else 0,
+                    "commentCount": int(st.get("commentCount", 0)) if st.get("commentCount") else 0,
+                    "actualStartTime": live.get("actualStartTime"),
+                    "liveDetailsPresent": bool(live),
+                    "defaultAudioLanguage": sn.get("defaultAudioLanguage"),
+                }
+            )
         time.sleep(0.08)
 
     stats_df = pd.DataFrame(rows)
@@ -139,6 +150,7 @@ def enrich_videos_with_stats(api_key: str, df: pd.DataFrame) -> pd.DataFrame:
 
 
 def enrich_channels(api_key: str, df: pd.DataFrame) -> pd.DataFrame:
+    """Add channel-level info (subscriberCount, videoCount, country) in batches."""
     if df is None or df.empty:
         return df
 
@@ -150,12 +162,14 @@ def enrich_channels(api_key: str, df: pd.DataFrame) -> pd.DataFrame:
         for it in data.get("items", []):
             sn = it.get("snippet", {})
             st = it.get("statistics", {})
-            ch_rows.append({
-                "channelId": it.get("id"),
-                "subscriberCount": int(st.get("subscriberCount", 0)) if st.get("subscriberCount") else 0,
-                "channelVideoCount": int(st.get("videoCount", 0)) if st.get("videoCount") else 0,
-                "country": sn.get("country") or "Unknown",
-            })
+            ch_rows.append(
+                {
+                    "channelId": it.get("id"),
+                    "subscriberCount": int(st.get("subscriberCount", 0)) if st.get("subscriberCount") else 0,
+                    "channelVideoCount": int(st.get("videoCount", 0)) if st.get("videoCount") else 0,
+                    "country": sn.get("country") or "Unknown",
+                }
+            )
         time.sleep(0.08)
 
     ch_df = pd.DataFrame(ch_rows)
@@ -167,6 +181,7 @@ def enrich_channels(api_key: str, df: pd.DataFrame) -> pd.DataFrame:
 
 
 def estimate_rpm_from_views(views: int) -> float:
+    """Heuristic RPM estimate (USD) from current view counts."""
     if not views or int(views) <= 0:
         return 0.0
     v = int(views)
@@ -180,6 +195,7 @@ def estimate_rpm_from_views(views: int) -> float:
 
 
 def final_pipeline(api_key: Optional[str] = None) -> pd.DataFrame:
+    """Full pipeline: search today -> enrich stats -> enrich channels -> derived columns."""
     if not api_key:
         api_key = API_KEY_DEFAULT
     if not api_key:
@@ -192,8 +208,16 @@ def final_pipeline(api_key: Optional[str] = None) -> pd.DataFrame:
     df_stats = enrich_videos_with_stats(api_key, df_search)
     df_full = enrich_channels(api_key, df_stats)
 
+    # Derived
     df_full["estimatedRPM_USD"] = df_full["viewCount"].apply(estimate_rpm_from_views)
     df_full["Monetizable"] = df_full["viewCount"].apply(lambda v: bool(v and int(v) >= 1000))
+    # convert publishedAt to datetime
     df_full["publishedAt"] = pd.to_datetime(df_full["publishedAt"])
+    # compute time_to_1k_hours approximation for videos >=1000: time since published (hours)
+    now = pd.Timestamp.utcnow()
+    df_full["timeSincePublish_h"] = ((now - df_full["publishedAt"]) / pd.Timedelta(hours=1)).round(2)
+    df_full["time_to_1k_h"] = df_full.apply(
+        lambda r: round(r["timeSincePublish_h"], 2) if r.get("viewCount", 0) >= 1000 else None, axis=1
+    )
     df_full = df_full.sort_values("publishedAt", ascending=False).reset_index(drop=True)
     return df_full

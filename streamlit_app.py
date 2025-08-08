@@ -5,7 +5,7 @@ from utils.youtube_api import final_pipeline
 from googleapiclient.errors import HttpError
 
 st.set_page_config(page_title="Meditation YouTube Analyzer", layout="wide")
-st.title("🧘 Meditation YouTube Analyzer — PRO")
+st.title("🧘 QQTran YouTube Analyzer — PRO")
 
 st.markdown(
     """

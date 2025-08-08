@@ -2,19 +2,21 @@ import os
 import streamlit as st
 from googleapiclient.discovery import build
 from dotenv import load_dotenv
-from datetime import datetime, timedelta
+from datetime import datetime
 import pandas as pd
 
-# Load biến môi trường từ .env nếu có
+# Load biến môi trường từ file .env
 load_dotenv()
 
 def get_api_key():
     """
-    Lấy API key từ biến môi trường, Streamlit secrets hoặc form nhập tay.
+    Lấy API key từ env, secrets hoặc hỏi người dùng nhập.
     """
+    if "YOUTUBE_API_KEY" in st.session_state:
+        return st.session_state["YOUTUBE_API_KEY"]
+
     api_key = os.getenv("YOUTUBE_API_KEY") or st.secrets.get("YOUTUBE_API_KEY", None)
 
-    # Nếu chưa có API key thì hỏi người dùng nhập
     if not api_key:
         st.warning("⚠ Chưa tìm thấy **YOUTUBE_API_KEY**. Vui lòng nhập để tiếp tục.")
         with st.form("api_key_form"):
@@ -23,38 +25,37 @@ def get_api_key():
             if submit:
                 if user_key.strip():
                     st.session_state["YOUTUBE_API_KEY"] = user_key.strip()
-                    st.success("✅ API Key đã được lưu tạm thời cho phiên này.")
+                    st.success("✅ API Key đã được lưu tạm thời.")
                     return user_key.strip()
                 else:
                     st.error("❌ API Key không hợp lệ.")
                     return None
         return None
 
+    st.session_state["YOUTUBE_API_KEY"] = api_key
     return api_key
-
 
 def build_youtube_service():
     """
-    Khởi tạo service YouTube API.
+    Khởi tạo YouTube API client.
     """
-    api_key = st.session_state.get("YOUTUBE_API_KEY") or get_api_key()
+    api_key = get_api_key()
     if not api_key:
         return None
     return build("youtube", "v3", developerKey=api_key)
 
-
 def search_meditation_videos_today():
     """
-    Tìm video chủ đề meditation đăng hôm nay.
+    Lấy video meditation đăng hôm nay + thông tin kênh.
     """
     youtube = build_youtube_service()
     if youtube is None:
-        st.stop()  # Dừng app nếu chưa có API key
+        st.stop()
 
     today = datetime.utcnow().date()
     published_after = datetime.combine(today, datetime.min.time()).isoformat("T") + "Z"
 
-    request = youtube.search().list(
+    search_request = youtube.search().list(
         q="meditation",
         part="snippet",
         type="video",
@@ -62,15 +63,41 @@ def search_meditation_videos_today():
         publishedAfter=published_after,
         maxResults=50
     )
-    response = request.execute()
+    search_response = search_request.execute()
 
     videos_data = []
-    for item in response.get("items", []):
+    for item in search_response.get("items", []):
         video_id = item["id"]["videoId"]
         snippet = item["snippet"]
         channel_id = snippet["channelId"]
 
-        # Lấy chi tiết video
-        stats_req = youtube.videos().list(
+        # Video stats
+        stats_resp = youtube.videos().list(
             part="statistics",
             id=video_id
+        ).execute()
+        stats = stats_resp["items"][0]["statistics"] if stats_resp.get("items") else {}
+
+        # Channel stats
+        channel_resp = youtube.channels().list(
+            part="statistics",
+            id=channel_id
+        ).execute()
+        ch_stats = channel_resp["items"][0]["statistics"] if channel_resp.get("items") else {}
+
+        videos_data.append({
+            "video_id": video_id,
+            "title": snippet["title"],
+            "channel_title": snippet["channelTitle"],
+            "published_at": snippet["publishedAt"],
+            "views": int(stats.get("viewCount", 0)),
+            "likes": int(stats.get("likeCount", 0)) if "likeCount" in stats else None,
+            "comments": int(stats.get("commentCount", 0)) if "commentCount" in stats else None,
+            "subs": int(ch_stats.get("subscriberCount", 0)),
+            "total_videos": int(ch_stats.get("videoCount", 0)),
+            "channel_id": channel_id
+        })
+
+    df = pd.DataFrame(videos_data)
+    df = df.sort_values(by="views", ascending=False).reset_index(drop=True)
+    return df

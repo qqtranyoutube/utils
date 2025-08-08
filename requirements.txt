@@ -1,8 +1,6 @@
 streamlit
 google-api-python-client
-PyYAML
-pandas
-requests
-plotly
 python-dotenv
-
+pandas
+plotly
+requests
